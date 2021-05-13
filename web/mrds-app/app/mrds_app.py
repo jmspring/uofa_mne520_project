@@ -15,7 +15,7 @@ def load_bounded_points(lower_left_lat, lower_left_lon, upper_right_lat, upper_r
     lonMax = max(lower_left_lon, upper_right_lon)
 
     columns = ['id', 'url', 'site_name', 'latitude', 'longitude']
-    with pymssql.connect('localhost', 'SA', 'ProspectingGoldForFun!', 'mrds') as conn:
+    with pymssql.connect('db', 'SA', 'GoldIsTheBestMetal!', 'mrds') as conn:
         with conn.cursor() as cursor:
             sql = 'select dep_id as id, url, site_name, latitude, longitude from mrds where latitude between {} and {} and longitude between {} and {};'.format(latMin, latMax, lonMin, lonMax);
             cursor.execute(sql)
