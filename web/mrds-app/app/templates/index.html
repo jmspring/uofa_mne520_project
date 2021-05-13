@@ -1,0 +1,169 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.5.0/css/ol.css" type="text/css">
+    <style>
+      .map {
+        height: 100%;
+        width: 100%;
+      }
+      .ol-tooltip {
+        position: absolute;
+        background-color: white;
+        -webkit-filter: drop-shadow(0 1px 4px rgba(0,0,0,0.2));
+        filter: drop-shadow(0 1px 4px rgba(0,0,0,0.2));
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid #cccccc;
+        bottom: 17px;
+        left: -50px;
+        min-width: 170px;
+      }
+      .ol-tooltip:after, .ol-tooltip:before {
+        top: 100%;
+        border: solid transparent;
+        content: " ";
+        height: 0;
+        width: 0;
+        position: absolute;
+        pointer-events: none;
+      }
+      .ol-tooltip:after {
+        border-top-color: white;
+        border-width: 10px;
+        left: 48px;
+        margin-left: -10px;
+      }
+      .ol-tooltip:before {
+        border-top-color: #cccccc;
+        border-width: 11px;
+        left: 48px;
+        margin-left: -11px;
+      }
+      .ol-tooltip p {
+        margin-top: 0;
+        margin-bottom: 0;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.5.0/build/ol.js"></script>
+    <script src="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.6.0.min.js"></script>
+  </head>
+  <body>
+    <div id="map" class="map"></div>
+    <div id="tooltip" class="ol-tooltip">
+      <div id="tooltip-content"></div>
+    </div>
+    <script type="text/javascript">
+      // variables for managering the markers currently visible
+      var markerLayer = null;
+      var markers = {};
+
+      // define the map object
+      var map = new ol.Map({
+        target: 'map',
+        layers: [
+          new ol.layer.Tile({
+            source: new ol.source.OSM()
+          })
+        ],
+        view: new ol.View({
+          center: ol.proj.fromLonLat([-120.6186, 39.7663]),
+          zoom: 13
+        })
+      });
+
+      // add a tool tip for hover over
+      var tooltipContainer = document.getElementById('tooltip');
+      var tooltipContent = document.getElementById('tooltip-content');
+
+      var tooltip = new ol.Overlay({
+        element: tooltipContainer,
+        autoPan: true,
+        autoPanAnimation: {
+          duration: 250
+        }
+      });
+      map.addOverlay(tooltip);
+
+      // if a feature is clicked on, open it's MRDS URL
+      map.on("click", function(e) {
+        var i = 0;
+        map.forEachFeatureAtPixel(e.pixel, function (feature, layer) {
+          if(i == 0) {
+            i++;
+            window.open(markers[feature.ol_uid]['url']);
+          }
+        });
+      });
+
+      function wrapLon(value) {
+        var worlds = Math.floor((value + 180) / 360);
+        return value - (worlds * 360);
+      }
+
+      // When the user has panned the map (or on initial load), query potential MRDS 
+      // features that are within the view window of the browser and add them to the 
+      // map.
+      function onMoveEnd(evt) {
+        var map = evt.map;
+        var extent = map.getView().calculateExtent(map.getSize());
+        var bottomLeft = ol.proj.transform(ol.extent.getBottomLeft(extent),
+            'EPSG:3857', 'EPSG:4326');
+        var topRight = ol.proj.transform(ol.extent.getTopRight(extent),
+            'EPSG:3857', 'EPSG:4326');
+        $.ajax({
+          url: './points/' + bottomLeft[1] + '/' + wrapLon(bottomLeft[0]) + '/' + topRight[1] + '/' + wrapLon(topRight[0]),
+          method: 'GET'
+        }).done(function(data, status, xhr) {
+          // decode the points from the database
+          pointData = JSON.parse(data);
+          markers = {};
+
+          // Points are displayed on a Feature Layer.  In order to update the Feature
+          // Layer, you need to remove the existing one, add the new Features and re-add
+          // the Feature Layer to the map.
+          //
+          // Features is an array of "Point" features/
+          if(markerLayer != null) {
+            map.removeLayer(markerLayer);
+          }
+          markerLayer = undefined;
+          var features = [];
+          for(var i in Object.keys(pointData['id'])) {
+            var feature = new ol.Feature({
+              geometry: new ol.geom.Point(ol.proj.fromLonLat([pointData['longitude'][i], pointData['latitude'][i]])),
+            });
+            markers[feature.ol_uid] = { 'site_name': pointData['site_name'][i], 'url': pointData['url'][i] };
+            features.push(feature);
+          }
+          markerLayer = new ol.layer.Vector({
+            source: new ol.source.Vector({
+              features: features
+            })
+          });
+          map.addLayer(markerLayer);
+        });
+      }
+      map.on('moveend', onMoveEnd);
+
+      function onPointerMove(evt) {
+        i = 0;
+        var feature = map.forEachFeatureAtPixel(evt.pixel, function(feature) {
+          if(i == 0) {
+            i++;
+            var featureText = markers[feature.ol_uid]['site_name'];
+            if(featureText == null || featureText == '') {
+              featureText = "no name available"
+            }
+            var coordinates = feature.getGeometry().getCoordinates();
+            tooltipContent.innerHTML = '<p>' + featureText + '</p>';
+            tooltip.setPosition(coordinates);
+          }
+        });
+        if (i == 0) {
+          tooltip.setPosition(undefined);
+        };
+      }
+      map.on('pointermove', onPointerMove);
+    </script>    
+  </body>
+</html>

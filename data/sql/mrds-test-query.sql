@@ -1,0 +1,1 @@
+select count(*) from mrds where geolocation.STIntersects(geography::STPointFromText('POINT(-120.6098719 39.7628835)', 4326).STBuffer(200))=1

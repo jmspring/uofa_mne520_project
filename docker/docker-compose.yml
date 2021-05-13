@@ -1,0 +1,22 @@
+services:
+  db:
+    image: "mcr.microsoft.com/azure-sql-edge"
+    environment:
+      SA_PASSWORD: "${DATABASE_PASSWORD}"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    volumes:
+      - ${MSSQL_PATH}:/var/opt/mssql
+  nginx:
+    build: ${APP_PATH}/nginx
+    container_name: nginx-flask
+    restart: always
+    ports:
+      - "80:80"
+  mrds-app:
+    build: ${APP_PATH}/mrds-app
+    container_name: mrds-app
+    restart: always
+    expose:
+      - 5000

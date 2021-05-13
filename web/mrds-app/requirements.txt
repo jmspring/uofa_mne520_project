@@ -1,0 +1,4 @@
+pandas==1.2.4
+geopandas==0.9.0
+pymssql==2.2.1
+python-memcached==1.59
