@@ -14,6 +14,5 @@ RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
 COPY ./app/ .
 COPY wsgi.ini .
 
-#CMD ["uwsgi", "wsgi.ini"]
-CMD ["sleep", "10000"]
+CMD ["uwsgi", "wsgi.ini"]
 
